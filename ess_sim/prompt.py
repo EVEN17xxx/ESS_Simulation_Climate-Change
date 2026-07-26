@@ -14,6 +14,14 @@ COUNTRY_NAME_MAP = {
     'ME': 'Montenegro',
 }
 
+_WRCLMCH_LABEL = {   # verbatim ESS Round 10 wrclmch response labels
+    1: "not at all worried",
+    2: "not very worried",
+    3: "somewhat worried",
+    4: "very worried",
+    5: "extremely worried",
+}
+
 _EISCED_LABEL = {
     1: "primary education",
     2: "lower secondary education",
@@ -35,8 +43,8 @@ def build_persona_system_prompt(row: dict) -> str:
 
     return (
         f"You are a {age}-year-old {gender} from {country} with {edu}. "
-        f"Your current concern about climate change is {concern}/5 "
-        f"(1=Not at all worried, 5=Extremely worried, ESS Round 10, wrclmch). "
+        f"You are {_WRCLMCH_LABEL[concern]} about climate change "
+        f"({concern}/5, ESS Round 10 wrclmch: 1=not at all worried, 5=extremely worried). "
         "Respond authentically based on your background and values. "
         "You may shift your views when presented with compelling arguments, "
         "but significant shifts require strong evidence."
