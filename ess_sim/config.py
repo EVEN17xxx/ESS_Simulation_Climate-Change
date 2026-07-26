@@ -26,6 +26,10 @@ class ExperimentConfig:
     # blank control: isolation mode -- agents contact no one (pure LLM drift baseline)
     isolation: bool = False
 
+    # citizen draw from the ESS pool: "natural" (real marginal, default) or "stratified"
+    # (equal allocation by wrclmch -- balanced concern marginal, personas still real respondents)
+    sampling: Literal["natural", "stratified"] = "natural"
+
     # interaction & memory
     max_interactions: int = 1  # Deffuant pairwise convention (Deffuant et al. 2000; Flache et al. 2017)
     memory_window: int = 3     # raw sliding window, no summarization (Cowan 2001 ~3-4 chunks)
@@ -45,6 +49,7 @@ class ExperimentConfig:
                 "_denial" if self.denial_enabled else "",
                 f"_r{self.target_r:g}" if self.target_r else "",
                 "_iso" if self.isolation else "",
+                "_strat" if self.sampling == "stratified" else "",
                 f"_t{self.temperature:g}" if self.temperature != 0.7 else "",
                 f"_{self.gpt_model}" if self.gpt_model != "gpt-4o-mini" else "",
                 f"_steps{self.step_count}" if self.step_count != 20 else "",

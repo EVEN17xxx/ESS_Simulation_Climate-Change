@@ -236,7 +236,7 @@ class World(mesa.Model):
         citizen_nodes = [n for n in sorted(self.G.nodes()) if n not in stub_nodes]
         # Sample each citizen from the FULL ESS pool (real unimodal distribution, wrclmch=3 kept);
         # camp is a post-hoc 3-tier LABEL derived from the sampled initial concern.
-        citizen_rows = sample_citizen_rows(cfg.seed, citizen_nodes, pool)
+        citizen_rows = sample_citizen_rows(cfg.seed, citizen_nodes, pool, mode=cfg.sampling)
         camp_of = {}
         for node in citizen_nodes:
             c0 = int(citizen_rows[node]["climate_concern"])

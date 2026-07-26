@@ -123,10 +123,29 @@ def _load_ess_pool() -> list:
     return _ESS_POOL
 
 
-def sample_citizen_rows(seed: int, citizen_nodes, pool=None) -> dict:
+def sample_citizen_rows(seed: int, citizen_nodes, pool=None, mode: str = "natural") -> dict:
 
     pool = pool or _load_ess_pool()
-    return {node: random.Random(seed + node * 31337).choice(pool) for node in citizen_nodes}
+    if mode == "natural":
+        return {node: random.Random(seed + node * 31337).choice(pool) for node in citizen_nodes}
+    if mode != "stratified":
+        raise ValueError(f"unknown sampling mode {mode!r} (expected 'natural' or 'stratified')")
+    # Equal allocation by wrclmch (floor division; any remainder spread from level 1 up),
+    # sampled at random WITHIN each level, then shuffled across nodes so node id never
+    # correlates with concern (adjacent ids are neighbours in the small-world ring).
+    nodes = sorted(citizen_nodes)
+    base, rem = divmod(len(nodes), 5)
+    alloc = {lvl: base + (1 if i < rem else 0) for i, lvl in enumerate((1, 2, 3, 4, 5))}
+    by_level = {lvl: [r for r in pool if r["climate_concern"] == lvl] for lvl in alloc}
+    short = {lvl: (len(by_level[lvl]), alloc[lvl])
+             for lvl in alloc if len(by_level[lvl]) < alloc[lvl]}
+    if short:
+        raise ValueError(f"stratified sampling short of respondents, "
+                         f"level: (available, needed) = {short}; refusing to sample with replacement")
+    rng = random.Random(seed)
+    draws = [row for lvl in (1, 2, 3, 4, 5) for row in rng.sample(by_level[lvl], alloc[lvl])]
+    rng.shuffle(draws)
+    return dict(zip(nodes, draws))
 
 
 def run_pool_diagnostics():
