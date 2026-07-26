@@ -77,12 +77,14 @@ def generate_random_network(num_agents: int, target_edges: int,
     max_possible = num_agents * (num_agents - 1) // 2
     p = target_edges / max_possible
 
+    base_seed = seed
     for attempt in range(5):
+        if base_seed is not None:
+            seed = base_seed + attempt   # deterministic retry: unique seed per attempt
         G = nx.erdos_renyi_graph(num_agents, min(p, 1.0), seed=seed)
         if nx.is_connected(G):
             break
         p *= 1.2
-        seed = None
     else:
         G = nx.erdos_renyi_graph(num_agents, min(p, 1.0), seed=seed)
         for u, v in nx.minimum_spanning_tree(nx.complete_graph(num_agents)).edges():
