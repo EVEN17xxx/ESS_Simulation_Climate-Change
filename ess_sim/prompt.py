@@ -48,10 +48,9 @@ init_interpretation_prompt = (
     "--- ARTICLE ---\n{article_text}\n--- END ARTICLE ---\n\n"
     "Topic question: {topic_question}\n\n"
     "Based on this article and your own background and values, give your initial "
-    "reaction. Let your concern level follow naturally from who you are.\n\n"
+    "reaction. React in character, consistent with your stated level of worry.\n\n"
     "Output:\n"
     "  opinion: your reaction and opinion (2-4 sentences, in character)\n"
-    "  concern: your climate concern, integer 1-5 (1=not at all worried, 5=extremely worried)\n"
     "  rationale: how you arrived at this view (under 80 words)"
 )
 

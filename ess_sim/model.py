@@ -17,6 +17,7 @@ from .config import ExperimentConfig
 from .llm_client import (
     LLM_STATS,
     UpdateOpinionResponse,
+    InitOpinionResponse,
     clamp_concern,
     reset_llm_semaphore,
     set_max_concurrent_llm_calls,
@@ -126,7 +127,6 @@ class World(mesa.Model):
                 int(k): {
                     "opinion":    v["initial_opinion"],
                     "rationale":  v.get("initial_rationale", v.get("initial_reasoning", "")),
-                    "llm_concern": v["initial_concern"],
                 }
                 for k, v in _cached.items()
             }
@@ -141,7 +141,7 @@ class World(mesa.Model):
             interp = interpretations[node]
             agent = ClimateAgent(
                 model=self, unique_id=node, name=params["name"],
-                camp=params["camp"], initial_concern=interp["llm_concern"],
+                camp=params["camp"], initial_concern=params["initial_concern"],
                 topic=self.topic_question,
                 gpt_model=self.gpt_model, temp=self.temp,
                 initial_opinion=interp["opinion"], initial_rationale=interp["rationale"],
@@ -154,8 +154,7 @@ class World(mesa.Model):
             self.grid.place_agent(agent, node)
             self.backgrounds[str(node)] = {
                 "name": params["name"],
-                "initial_concern": interp["llm_concern"],
-                "concern_hint": params["initial_concern"],
+                "initial_concern": params["initial_concern"],
                 "node_degree": self.G.degree(node),
                 "initial_opinion": interp["opinion"],
                 "initial_rationale": interp["rationale"],
@@ -168,7 +167,7 @@ class World(mesa.Model):
             # Some agents start with no LLM opinion at all. Withhold the fingerprint so this
             # degraded initialization is never silently reused as canonical.
             print(f"[WARN] {self._init_fallbacks}/{self.num_agents} initial interpretations fell "
-                  f"back to the sampled ESS value (LLM returned nothing). Fingerprint NOT written; "
+                  f"back to an empty opinion (LLM returned nothing). Fingerprint NOT written; "
                   f"these backgrounds will be regenerated on the next run.")
         else:
             with open(fp_path, "w", encoding="utf-8") as f:
@@ -332,29 +331,30 @@ class World(mesa.Model):
     async def _async_generate_all_interpretations(self) -> dict:
         nodes = sorted(self.G.nodes())
         tasks = [self._async_generate_initial_interpretation(
-                     self._agent_init_params[n]["system_prompt"],
-                     self._agent_init_params[n]["initial_concern"])
+                     self._agent_init_params[n]["system_prompt"])
                  for n in nodes]
         responses = await asyncio.gather(*tasks)
-        return {n: {"opinion": o, "rationale": r, "llm_concern": b}
-                for n, (o, r, b) in zip(nodes, responses)}
+        return {n: {"opinion": o, "rationale": r}
+                for n, (o, r) in zip(nodes, responses)}
 
-    async def _async_generate_initial_interpretation(self, system_prompt, initial_concern):
+    async def _async_generate_initial_interpretation(self, system_prompt):
+        # Opinion text + rationale ONLY: t=0 concern is exogenous (the ESS draw),
+        # hard-assigned by code at agent construction, never asked of the LLM.
         user_msg = init_interpretation_prompt.format(
             article_text=self.article_text,
             topic_question=self.topic_question,
         )
         response = await async_get_completion_from_messages_structured(
             system_messages=system_prompt, messages=user_msg,
-            model=self.gpt_model, temperature=self.temp, response_type=UpdateOpinionResponse,
+            model=self.gpt_model, temperature=self.temp, response_type=InitOpinionResponse,
         )
         if response:
-            llm_concern = clamp_concern(response.concern)
-            return response.opinion, response.rationale, llm_concern
-        # LLM exhausted its retries: fall back to the sampled ESS value with no opinion text.
-        # Counted by the caller -- a run initialised from fallbacks must not be cached as canonical.
+            return response.opinion, response.rationale
+        # LLM exhausted its retries: agent starts with no opinion text (concern is the ESS
+        # draw either way). Counted by the caller -- a run initialised from fallbacks must
+        # not be cached as canonical.
         self._init_fallbacks += 1
-        return "", "Initial interpretation (LLM fallback).", initial_concern
+        return "", "Initial interpretation (LLM fallback)."
 
     def decide_agent_interactions(self):
         # Deffuant pairwise contact: each agent randomly selects max_interactions

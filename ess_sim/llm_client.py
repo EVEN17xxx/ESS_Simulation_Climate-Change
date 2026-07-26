@@ -64,6 +64,11 @@ class UpdateOpinionResponse(BaseModel):
     concern: float
     rationale: str
 
+class InitOpinionResponse(BaseModel):
+    # init only: t=0 concern is hard-assigned by code from the ESS draw, never by the LLM
+    opinion: str
+    rationale: str
+
 async def async_get_completion_from_messages_structured(
     messages, system_messages="You are a helpful assistant.",
     model="gpt-4o-mini", temperature=0.7,
